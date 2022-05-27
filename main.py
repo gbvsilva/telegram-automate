@@ -29,6 +29,7 @@ tnt_crash_copy_app = tnt_crash.copy_app.CopyApp(tnt_bot_crash_channel, tnt_crash
 async def Main():
     while True:
         await asyncio.sleep(1)
+        await roletas_copy_app.clear_messages_to_delete()
 
 with Client:
     Client.loop.run_until_complete(Main())

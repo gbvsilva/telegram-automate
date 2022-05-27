@@ -1,7 +1,8 @@
+from calendar import c
 from tools.credentials import Client
 from telethon import events
 from rules import Rule
-import asyncio
+
 
 class CopyApp():
 
@@ -10,15 +11,14 @@ class CopyApp():
         self.target_channels = target_channels
 
         # Messages to delete
-        self.messages_to_delete = {}
-        self.ids_to_delete_pool = {}
+        self.msgs_to_delete_ids = {}
+        self.msgs_to_delete_list = {}
         # Setting rules
         for channel in self.target_channels:
             rule_name = self.target_channels[channel]['rule']
             self.target_channels[channel]['rule'] = Rule(rule_name)
-            self.messages_to_delete[channel] = {}
-            self.ids_to_delete_pool[channel] = []
-        
+            self.msgs_to_delete_ids[channel] = {}
+            self.msgs_to_delete_list[channel] = []
 
         @Client.on(events.NewMessage(chats=self.source_channel))
         async def new_message(event):
@@ -35,28 +35,22 @@ class CopyApp():
                     if ok:
                         message = await Client.send_message(channel, event.raw_text)
                         print(f"Mensagem enviada para {self.target_channels[channel]['name']} ID -> {message.id}")
-                        self.messages_to_delete[channel][event.id] = message.id
+                        self.msgs_to_delete_ids[channel][event.id] = message.id
 
         @Client.on(events.MessageDeleted(chats=[self.source_channel]))
-        async def delete_messages(event):
-            print(f'=== Excluindo mensagens IDs -> {event.deleted_ids} ===')
-            for channel in self.messages_to_delete:
+        async def insert_into_del_list(event):
+            print(f'=== Inserindo nas filas mensagens a serem excluídas IDs -> {event.deleted_ids} ===')
+            for channel in self.target_channels:
                 for message_id in event.deleted_ids:
-                    if message_id in self.messages_to_delete[channel]: 
-                        await Client.delete_messages(channel, self.messages_to_delete[channel][message_id])
-                        del self.messages_to_delete[channel][message_id]
-                    # Tratando sincronização com mensagens ainda não inseridas
-                    else:
-                        self.ids_to_delete_pool[channel].append(message_id)
+                    self.msgs_to_delete_list[channel].append(message_id)
             
-            
-            await asyncio.sleep(30)
-            # Clearing IDs not inserted in previous call
-            for channel in self.ids_to_delete_pool:
-                if len(self.ids_to_delete_pool[channel]) > 0:
-                    for message_id in self.ids_to_delete_pool[channel]:
-                        if message_id in self.messages_to_delete[channel]:
-                            await Client.delete_messages(channel, self.messages_to_delete[channel][message_id])
-                            del self.messages_to_delete[channel][message_id]
-                            self.ids_to_delete_pool[channel].remove(message_id)
+
+    async def clear_messages_to_delete(self):   
+        # Clearing IDs in the list to delete
+        for channel in self.target_channels:
+            for message_id in self.msgs_to_delete_list[channel]:
+                if message_id in self.msgs_to_delete_ids[channel]:
+                    await Client.delete_messages(channel, self.msgs_to_delete_ids[channel][message_id])
+                    del self.msgs_to_delete_ids[channel][message_id]
+                    self.msgs_to_delete_list[channel].remove(message_id)
             
