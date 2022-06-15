@@ -33,16 +33,6 @@ class CopyApp():
                         print(f"Mensagem enviada para {self.target_channels[channel]['name']} ID -> {message.id}")
                         if bool([text for text in self.msg_to_delete_filters if text in event.raw_text]):
                             self.msgs_to_delete_list[channel].append(message.id)
-        
-        # This method is not 100% reliable. Then, all messages with 'ANALISANDO' and 'Fazer gale' will be always cleared
-        @Client.on(events.MessageDeleted(chats=[self.source_channel]))
-        async def insert_into_del_list(event):
-            print(f'=== Inserindo nas filas mensagens a serem excluídas IDs -> {event.deleted_ids} ===')
-            for channel in self.target_channels:
-                for message_id in event.deleted_ids:
-                    if message_id not in self.msgs_to_delete_list[channel]:
-                        self.msgs_to_delete_list[channel].append(message_id)
-            
 
     async def clear_messages_to_delete(self):   
         # Clearing IDs in the list to delete
